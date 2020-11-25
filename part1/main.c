@@ -2,7 +2,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <semaphore.h>
-#include <pthread.h>
 
 #define MAX_TRAINERS 5
 #define MAX_WAIT_SLOTS 6
@@ -94,6 +93,7 @@ void trainer(int num_customers) {
 	sem_wait(&cus);
 	sem_wait(&mutex);
 	num_customers--;
+	num_trainers--;
 	// if num_trainers > 0 set trainer available?
 	sem_post(&train);
 	sem_post(&mutex);
@@ -109,6 +109,7 @@ void customer(int num_customers) {
 		sem_wait(&train);
 		//do_training();
 		//prob need another semaphore, similar to num_customer
+		//need a way to not go past max trainers
 		num_trainers++;
 	}
 	else {
