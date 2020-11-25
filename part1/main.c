@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <semaphore.h>
+#include <pthread.h>
 
 #define MAX_TRAINERS 5
 #define MAX_WAIT_SLOTS 6
@@ -13,6 +15,12 @@ struct _queue {
 	size_t ins_pos;
 	size_t read_pos;
 } wait_queue;
+
+int num_trainers = MAX_TRAINERS;
+int num_customers;
+sem_t cus;
+sem_t train;
+sme_t mutex;
 
 uint16_t push_queue(uint16_t value);
 uint16_t pop_queue();
@@ -40,6 +48,13 @@ int main(int argc, char **argv) {
 	printf("%d\n", pop_queue());
 	printf("%d\n", pop_queue());
 	printf("%d\n", pop_queue());
+	
+	while(true) { //When does this become false? Idk when program should end.
+		num_customers = 0;
+		customer(num_customers);
+		int pid = fork();	// check for error
+		trainer(num_customers);
+	}
 
 	return 0;
 }
@@ -73,4 +88,30 @@ bool queue_has_slot() {
 
 bool queue_has_value() {
 	return (!(wait_queue.ins_pos == wait_queue.read_pos));
+}
+
+void trainer(int num_customers) {
+	sem_wait(&cus);
+	sem_wait(&mutex);
+	num_customers--;
+	// if num_trainers > 0 set trainer available?
+	sem_post(&train);
+	sem_post(&mutex);
+	//do_coaching();
+}
+
+void customer(int num_customers) {
+	sem_wait(&mutex);
+	if(queue_has_slot()) {
+		num_customers++;
+		sem_post(&cus);
+		sem_post(&mutex);
+		sem_wait(&train);
+		//do_training();
+		//prob need another semaphore, similar to num_customer
+		num_trainers++;
+	}
+	else {
+		sem_post(&mutex);
+	}
 }
