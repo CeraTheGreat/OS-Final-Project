@@ -2,6 +2,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <semaphore.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #define MAX_TRAINERS 5
 #define MAX_WAIT_SLOTS 6
@@ -19,12 +21,15 @@ int num_trainers = MAX_TRAINERS;
 int num_customers;
 sem_t cus;
 sem_t train;
-sme_t mutex;
+sem_t mutex;
 
 uint16_t push_queue(uint16_t value);
 uint16_t pop_queue();
 bool queue_has_slot();
 bool queue_has_value();
+
+void trainer(int num_customers);
+void customer(int num_customers);
 
 int main(int argc, char **argv) {
 	/* set wait slot value, IDK where we get this */
@@ -48,11 +53,15 @@ int main(int argc, char **argv) {
 	printf("%d\n", pop_queue());
 	printf("%d\n", pop_queue());
 	
-	while(true) { //When does this become false? Idk when program should end.
+	//Need to do some testing. Print some stuff knowing if everything is working properly and to show.
+	int i = 0;
+	while(i < 20) { //When does this become false? Idk when program should end.
 		num_customers = 0;
 		customer(num_customers);
 		int pid = fork();	// check for error
 		trainer(num_customers);
+		
+		i++;
 	}
 
 	return 0;
@@ -93,9 +102,10 @@ void trainer(int num_customers) {
 	sem_wait(&cus);
 	sem_wait(&mutex);
 	num_customers--;
-	num_trainers--;
-	// if num_trainers > 0 set trainer available?
-	sem_post(&train);
+	if (num_trainers > 0) { // if num_trainers > 0 decrease amt of available trainers and set trainer available
+		num_trainers--;
+		sem_post(&train);
+	}
 	sem_post(&mutex);
 	//do_coaching();
 }
@@ -107,10 +117,10 @@ void customer(int num_customers) {
 		sem_post(&cus);
 		sem_post(&mutex);
 		sem_wait(&train);
-		//do_training();
-		//prob need another semaphore, similar to num_customer
-		//need a way to not go past max trainers
-		num_trainers++;
+		if (num_trainers < 6) {
+			//do_training();
+			num_trainers++; //need another semaphore? to prevent context switching?
+		}
 	}
 	else {
 		sem_post(&mutex);
