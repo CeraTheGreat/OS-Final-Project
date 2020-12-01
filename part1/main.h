@@ -13,7 +13,7 @@
 #define MAX_USLEEP 30
 
 /* shared memory constants */
-#define PROJECT_PATH "share"
+#define PROJECT_PATH ".share"
 #define PROJECT_ID 1
 
 #define SEMAPHORE_INIT 1
