@@ -128,7 +128,7 @@ int main(int argc, char **argv) {
 				break;
 			} 
 		}
-		/* sleep while we poll to keep the CPU happy */
+		/* sleep while we poll to keep the CPU happy  \(^ - ^)/ */
 		sleep(2);
 	}
 
@@ -136,7 +136,19 @@ int main(int argc, char **argv) {
 	for (int i = 0; i < MAX_WAIT_SLOTS + 1; i++) {
 		close(main_share->wait_queue.slots[i].fd[READ]);
 		close(main_share->wait_queue.slots[i].fd[WRITE]);
+		close(main_share->pipes[i].in[READ]);
+		close(main_share->pipes[i].in[WRITE]);
+		close(main_share->pipes[i].out[READ]);
+		close(main_share->pipes[i].out[WRITE]);
 	}
+
+
+	/* close record keeping book */
+	close(record_book_fd);
+
+	/* destroy semaphore & mutex */
+	sem_destroy(&main_share->mutex);
+	sem_destroy(&main_share->semaphore);
 
 	// destroy shared memory stuff when we're done
 	shmctl(sharedm_id, IPC_RMID, NULL);
@@ -181,6 +193,7 @@ void run_trainer() {
 	char buff[PIPE_BUFF_SIZE];
 	buff[0] = 'a';
 	ssize_t chars_read;
+	int customer_id;
 
 	while (true) {
 
@@ -188,8 +201,9 @@ void run_trainer() {
 
 		/* blocking read, wait for customer to be ready*/
 		chars_read = read(trainer.share->pipes[trainer.id].in[READ], buff, PIPE_BUFF_SIZE);
+		customer_id = (int) buff[0];
 
-		train_customer();
+		train_customer(customer_id);
 
 		/* when training is complete, check for customers in the waiting room */
 		/* lock semaphore to exclude other searchers */
@@ -198,7 +212,6 @@ void run_trainer() {
 
 			printf("trainer %d waking customer\n", trainer.id);
 
-			/* TODO: pass trainer id to customer and they will join trainer */
 			int customer_fd = pop_queue(&trainer.share->wait_queue);
 			write(customer_fd, (char*) &trainer.id, 1);
 
@@ -215,10 +228,19 @@ void run_trainer() {
 	}
 }
 
-void train_customer() {
+void train_customer(int customer_id) {
 	/* read list, instruct user on what to do, wait for them to finish */
 	/* sleep for now, until it's implimented */
 	sleep(10);
+
+	/* when training is complete, lock mutex and write results into the book */
+	sem_wait(&trainer.share->mutex);
+
+	/* write record to book */
+	dprintf(record_book_fd, "customer #%d: temp???\n", customer_id);
+	
+	/* when finished writing, release the mutex */
+	sem_post(&trainer.share->mutex);
 }
 
 void run_customer() {
@@ -241,7 +263,7 @@ void run_customer() {
 
 		printf("customer %d waking trainer %d\n", customer.id, trainer_id);
 
-		write(customer.share->pipes[trainer_id].in[WRITE], "\1", 2);
+		write(customer.share->pipes[trainer_id].in[WRITE], (char*) &customer.id, 1);
 		/* release semaphore */
 		sem_post(&customer.share->semaphore);
 		recieve_training(trainer_id);
@@ -263,9 +285,9 @@ void run_customer() {
 		/* when a trainer invites a customer, customer announces when ready */
 		trainer_id = (int) buff[0];
 
-		printf("customer %d woken by trainer %d\n", customer.id, trainer_id);
+		printf("customer %d awoken by trainer %d\n", customer.id, trainer_id);
 
-		write(customer.share->pipes[trainer_id].in[WRITE], "\1", 2);
+		write(customer.share->pipes[trainer_id].in[WRITE], (char*) &customer.id, 1);
 		recieve_training(trainer_id);
 			
 		return;

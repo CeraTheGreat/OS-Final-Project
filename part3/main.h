@@ -68,7 +68,7 @@ bool queue_has_slot(struct queue_s *queue);
 bool queue_has_value(struct queue_s *queue);
 
 void run_trainer();
-void train_customer();
+void train_customer(int customer_id);
 
 void run_customer();
 void recieve_training(int trainer_id);
