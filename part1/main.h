@@ -19,16 +19,8 @@
 #define SEMAPHORE_INIT 1
 
 #define PIPE_BUFF_SIZE 128
-#define WRITE 0
-#define READ 1
-
-/* circular queue, FIFO */
-struct queue_s {
-	size_t actual_wait_slots;
-	uint16_t slots[MAX_WAIT_SLOTS + 1];
-	size_t ins_pos;
-	size_t read_pos;
-};
+#define READ 0
+#define WRITE 1
 
 /* for communication between trainer and customer */
 struct trainer_pipes {
@@ -40,23 +32,35 @@ struct waitroom_pipes {
 	int fd[2];
 };
 
+/* circular queue, FIFO */
+struct queue_s {
+	size_t actual_wait_slots;
+	/* array of int [2] all in order */
+	struct waitroom_pipes slots[MAX_WAIT_SLOTS + 1];
+	size_t ins_pos;
+	size_t read_pos;
+};
+
+
 /* shared memory for ipc */
 struct sharedm_s {
 	sem_t semaphore;
-	//pthread_mutex_t checking_mutex;
 	struct queue_s wait_queue;
 	struct trainer_pipes pipes[MAX_TRAINERS];
 	bool is_trainer_idle[MAX_TRAINERS];
 };
 
 /* everything a single trainer needs to know */
-struct trainer_s {
+struct context_s{
 	struct sharedm_s *share;
 	uint8_t id;
 };
 
-uint16_t push_queue(uint16_t value, struct queue_s *queue);
-uint16_t pop_queue(struct queue_s *queue);
+int push_queue(struct queue_s *queue);
+int pop_queue(struct queue_s *queue);
+
+//uint16_t push_queue(uint16_t value, struct queue_s *queue);
+//uint16_t pop_queue(struct queue_s *queue);
 bool queue_has_slot(struct queue_s *queue);
 bool queue_has_value(struct queue_s *queue);
 
@@ -64,6 +68,9 @@ bool queue_has_value(struct queue_s *queue);
 //void *trainer_tf(void *argp);
 void run_trainer();
 void train_customer();
+
+void run_customer();
+void recieve_training(int trainer_id);
 
 //void trainer(int num_customers);
 //void customer(int num_customers);
